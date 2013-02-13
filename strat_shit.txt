@@ -1,0 +1,14 @@
+(cd "C:/cygwin/home/Tal/arch")
+(load "C:/cygwin/home/Tal/arch/compiler.scm")
+(compile-scheme-file "tal.txt" "out.c")
+
+
+					"printf(\"old-FP: %d\\n\", FP);\n"
+					"printf(\"old-FPARG(0): %d\\n\", FPARG(0));\n"
+					"\tPUSH(FP);\n"
+					"\tMOV(FP,SP);\n"
+					"printf(\"new-FP: %d\\n\", FP);\n"
+					"printf(\"new-FPARG(0): %d\\n\", FPARG(0));\n"
+					"print_stack(\"old-new\");\n"
+					
+					((lambda(x) ((lambda() x)))#t)
