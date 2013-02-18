@@ -629,7 +629,7 @@ int main()
  CONTINUE:
   /* initial the stack */
   PUSH(IMM(0));
-  PUSH(IMM(T_NIL);
+  PUSH(IMM(T_NIL));
   PUSH(&&END);
   PUSH(FP);
   MOV(FP,SP);
@@ -644,7 +644,7 @@ int main()
   PUSH(IMM(1));
   CALL(MAKE_SOB_BOOL);
   DROP(3);\n\n int i,j;") ;;;;;;;;;; delete i j
-			  (middle-result (code-gen input-scheme 1 '()))			  
+			  (middle-result (code-gen input-scheme 0 '()))			  
 			  (end-result " END:
 	print_heap();
 	print_stack(\"no comment\");
@@ -670,7 +670,7 @@ int main()
 			((eq? (car pe) 'bvar) (cg-bvar pe env))
 			((eq? (car pe) 'seq) (cg-seq pe env))
 			((eq? (car pe) 'or) (cg-or pe env))
-			((eq? (car pe) 'lambda-simple) (cg-lambda-simple pe env))
+			((eq? (car pe) 'lambda-simple) (cg-lambda-simple pe (+ 1 env)))
 			((eq? (car pe) 'if-3) (cg-if-3 pe env))
 			((eq? (car pe) 'applic) (cg-applic pe env))
 			(else ""))))
@@ -693,11 +693,73 @@ int main()
 						"\tPUSH(INDD(R0,1));\n"
 						"\tCALLA(INDD(R0,2));\n"
 						"\tDROP(" (number->string (+ 2 (length params) )) ");\n"
-;						"\tMOV(R4,IMM(2));\n"
-;						"\tADD(R4,IMM(" (number->string (length params)) "));\n"
-;						"\tMOV(SP,R4);\n"
 						" " error-lable ": \n"))))))
-					
+
+(define cg-lambda-opt
+	(lambda (pe env)
+		(let ((code-lable (lable-gen "L_CLOS_OPT_CODE"))
+			  (exit-lable (lable-gen "L_CLOS_OPT_EXIT")))
+			(with pe
+				(lambda (_ args opt body)
+				   (let ((args-size (length args))
+						 (opt-size (length opt)))
+					(string-append "\t\t/* start lambda-opt*/\n"
+						"\tMOV(R3,IMM(" (number->string env) "));\n"
+						"\tPUSH(IMM(3));\n"
+						"\tCALL(MALLOC);\n"
+						"\tDROP(1);\n"
+						"\tMOV(R1,R0);\n"
+						"\tMOV(IND(R1),IMM(T_CLOSURE));\n"
+						"\tPUSH(R3);\n"
+						"\tCALL(MALLOC);\n"
+						"\tDROP(1);\n"
+						"\tMOV(INDD(R1,1),R0);\n"
+
+							"	
+								for(i=0, j=1; i < R3-1;j++,i++){
+									MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
+							} \n"
+							
+
+						"\tPUSH(FPARG(1));\n"
+						"\tCALL(MALLOC);\n"
+						"\tDROP(1);\n"
+						"\tMOV(R2,INDD(R1,1));\n"
+						"\tMOV(INDD(R2,0),R0);\n"
+
+							"	for(i=0; i < FPARG(1);i++){
+									MOV(INDD(INDD(R2,0),i),FPARG(i+2));
+								} \n"
+
+						"\tMOV(INDD(R1,2),&&" code-lable " );\n"
+						"\tMOV(R0,R1);\n"
+						"\tJUMP(" exit-lable " );\n"
+						  
+						" " code-lable ": \n"
+						"\tPUSH(FP);\n"
+						"\tMOV(FP,SP);\n"
+									;code generation (part B)
+										;stack fixing
+						"printf(\" 0- %d \\n 1- %d \\n 2- %d \\n\",FPARG(0),FPARG(1),FPARG(2));\n"
+						
+						"\tMOV(R6,FPARG(1);\n"
+						"\tMOV(FPARG(1), IMM("(number->string (+ 1 args-size)) "));\n"
+						
+													"	
+								for(i=R6; i < ;j++,i++){
+									MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
+							} \n"
+						
+						
+						"\t\t /* start code-gen body (in lambda opt) */ \n"
+								
+						  (code-gen body env '())
+						"\t\t /* finish code-gen body and finishing lambda-opt */ \n"
+						"\tPOP(FP);\n"
+						"\tRETURN;\n"
+						  
+						" " exit-lable ": \n")))))))
+						
 (define cg-lambda-simple
 	(lambda (pe env)
 		(let ((code-lable (lable-gen "L_CLOS_CODE"))
@@ -705,48 +767,49 @@ int main()
 			(with pe
 				(lambda (_ args body)
 					(string-append "\t\t/* start lambda-simple*/\n"
-						"\tMOV(R3,IMM(" (number->string env) ")); /* change R3 !!!*/
-\tPUSH(IMM(3));
-\tCALL(MALLOC);
-\tDROP(1);
-\tMOV(R1,R0);
-\tMOV(IND(R1),IMM(T_CLOSURE));
-\tPUSH(R3);
-\tCALL(MALLOC);
-\tDROP(1);
-\tMOV(INDD(R1,1),R0);\n"
+						"\tMOV(R3,IMM(" (number->string env) "));\n"
+						"\tPUSH(IMM(3));\n"
+						"\tCALL(MALLOC);\n"
+						"\tDROP(1);\n"
+						"\tMOV(R1,R0);\n"
+						"\tMOV(IND(R1),IMM(T_CLOSURE));\n"
+						"\tPUSH(R3);\n"
+						"\tCALL(MALLOC);\n"
+						"\tDROP(1);\n"
+						"\tMOV(INDD(R1,1),R0);\n"
+							;extend the env
+							"	
+								for(i=0, j=1; i < R3-1;j++,i++){
+									printf(\"copying I - %d\\n\",INDD(FPARG(0),i));\n
+									MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
+							} \n"
+							
 
-"	
-	for(i=0, j=1; i < R3-1;j++,i++){
-		MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-}
-"
-;	PUSH(" (number->string (length args)) ");
-"	PUSH(FPARG(1));
-	printf(\"starg(-1) - %d, args -" (number->string (length args)) "\",STARG(-1));\n
-";  (if (> (length args) 0) (string-append "
-"	CALL(MALLOC);
-	DROP(1);
-	MOV(R2,INDD(R1,1));
-	MOV(INDD(R2,0),R0);
-	printf(\"FPARG(1) - %d, args -" (number->string (length args)) "\",FPARG(1));\n				
-	for(i=0; i < FPARG(1);i++){
-		MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-	}
-\n"
+						"\tPUSH(FPARG(1));\n"
+						"\tCALL(MALLOC);\n"
+						"\tDROP(1);\n"
+						"\tMOV(R2,INDD(R1,1));\n"
+						"\tMOV(INDD(R2,0),R0);\n"
 
-"\tMOV(INDD(R1,2),&&" code-lable " );
-\tMOV(R0,R1);
-\tJUMP(" exit-lable " );\n"
-  
-" " code-lable ": \n"
-"\tPUSH(FP);\n"
-"\tMOV(FP,SP);\n"
-  (code-gen body env '())
-"\tPOP(FP);\n"
-"\tRETURN;\n"
-  
-" " exit-lable ": \n"))))))
+							"	for(i=0; i < FPARG(1);i++){
+									printf(\"copying II - %d\\n\",FPARG(i+2));\n
+									MOV(INDD(INDD(R2,0),i),FPARG(i+2));
+								} \n"
+
+						"\tMOV(INDD(R1,2),&&" code-lable " );\n"
+						"\tMOV(R0,R1);\n"
+						"\tJUMP(" exit-lable " );\n"
+						  
+						" " code-lable ": \n"
+						"\tPUSH(FP);\n"
+						"\tMOV(FP,SP);\n"
+						"\t\t /* start code-gen body */ \n"
+						  (code-gen body env '())
+						"\t\t /* finish code-gen body and finishing lambda */ \n"
+						"\tPOP(FP);\n"
+						"\tRETURN;\n"
+						  
+						" " exit-lable ": \n"))))))
 				
 				
 (define cg-if-3
@@ -801,7 +864,7 @@ int main()
 			(lambda (_ var maj minor)				
 				(string-append "\t\t/* start bvar*/\n"
 					"\tMOV(R0, FPARG(0));\n"
-					"\tMOV(R0, INDD(R0,"(number->string (+ maj 1))"));\n"
+					"\tMOV(R0, INDD(R0,"(number->string maj )"));\n"
 					"\tMOV(R0, INDD(R0,"(number->string minor)"));\n"
 					)))))
 				

@@ -79,90 +79,14 @@ int main()
   DROP(3);
 
  int i,j;		/* start applic*/
-		/* start lambda-simple*/
-	MOV(R3,IMM(2)); /* change R3 !!!*/
-	PUSH(IMM(3));
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R1,R0);
-	MOV(IND(R1),IMM(T_CLOSURE));
-	PUSH(R3);
-	CALL(MALLOC);
-	DROP(1);
-	MOV(INDD(R1,1),R0);
-	
-	for(i=0, j=1; i < R3-1;j++,i++){
-		MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-}
-	PUSH(FPARG(1));
-	printf("starg(-1) - %d, args -1",STARG(-1));
-
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R2,INDD(R1,1));
-	MOV(INDD(R2,0),R0);
-	printf("FPARG(1) - %d, args -1",FPARG(1));
-				
-	for(i=0; i < FPARG(1);i++){
-		MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-	}
-
-	MOV(INDD(R1,2),&& L_CLOS_CODE_30 );
-	MOV(R0,R1);
-	JUMP( L_CLOS_EXIT_31 );
-  L_CLOS_CODE_30: 
-	PUSH(FP);
-	MOV(FP,SP);
-		/* start lambda-simple*/
-	MOV(R3,IMM(3)); /* change R3 !!!*/
-	PUSH(IMM(3));
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R1,R0);
-	MOV(IND(R1),IMM(T_CLOSURE));
-	PUSH(R3);
-	CALL(MALLOC);
-	DROP(1);
-	MOV(INDD(R1,1),R0);
-	
-	for(i=0, j=1; i < R3-1;j++,i++){
-		MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-}
-	PUSH(FPARG(1));
-	printf("starg(-1) - %d, args -1",STARG(-1));
-
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R2,INDD(R1,1));
-	MOV(INDD(R2,0),R0);
-	printf("FPARG(1) - %d, args -1",FPARG(1));
-				
-	for(i=0; i < FPARG(1);i++){
-		MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-	}
-
-	MOV(INDD(R1,2),&& L_CLOS_CODE_32 );
-	MOV(R0,R1);
-	JUMP( L_CLOS_EXIT_33 );
-  L_CLOS_CODE_32: 
-	PUSH(FP);
-	MOV(FP,SP);
-		/* start bvar*/
-	MOV(R0, FPARG(0));
-	MOV(R0, INDD(R0,1));
-	MOV(R0, INDD(R0,0));
-	POP(FP);
-	RETURN;
-  L_CLOS_EXIT_33: 
-	POP(FP);
-	RETURN;
-  L_CLOS_EXIT_31: 
+	MOV(R0,14);
 	PUSH(R0);
-	PUSH(1);
+	MOV(R0,12);
+	PUSH(R0);
+	PUSH(2);
 
-		/* start applic*/
 		/* start lambda-simple*/
-	MOV(R3,IMM(2)); /* change R3 !!!*/
+	MOV(R3,IMM(1));
 	PUSH(IMM(3));
 	CALL(MALLOC);
 	DROP(1);
@@ -173,61 +97,36 @@ int main()
 	DROP(1);
 	MOV(INDD(R1,1),R0);
 	
-	for(i=0, j=1; i < R3-1;j++,i++){
-		MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-}
-	PUSH(FPARG(1));
-	printf("starg(-1) - %d, args -1",STARG(-1));
+								for(i=0, j=1; i < R3-1;j++,i++){
+									printf("copying I - %d\n",INDD(FPARG(0),i));
 
+									MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
+							} 
+	PUSH(FPARG(1));
 	CALL(MALLOC);
 	DROP(1);
 	MOV(R2,INDD(R1,1));
 	MOV(INDD(R2,0),R0);
-	printf("FPARG(1) - %d, args -1",FPARG(1));
-				
 	for(i=0; i < FPARG(1);i++){
-		MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-	}
+									printf("copying II - %d\n",FPARG(i+2));
 
-	MOV(INDD(R1,2),&& L_CLOS_CODE_26 );
+									MOV(INDD(INDD(R2,0),i),FPARG(i+2));
+								} 
+	MOV(INDD(R1,2),&& L_CLOS_CODE_2 );
 	MOV(R0,R1);
-	JUMP( L_CLOS_EXIT_27 );
-  L_CLOS_CODE_26: 
+	JUMP( L_CLOS_EXIT_3 );
+  L_CLOS_CODE_2: 
 	PUSH(FP);
 	MOV(FP,SP);
+printf(" 0- %d \n 1- %d \n 2- %d \n",FPARG(0),FPARG(1),FPARG(2));
+		 /* start code-gen body */ 
 		/* start applic*/
 	MOV(R0,12);
 	PUSH(R0);
 	PUSH(1);
 
-		/* start applic*/
-	MOV(R0,14);
-	PUSH(R0);
-	PUSH(1);
-
-		/* start pvar*/
-	MOV(R0,FPARG(2));
-	CMP(IND(R0), T_CLOSURE);
-	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_29) ;
-	PUSH(INDD(R0,1));
-	CALLA(INDD(R0,2));
-	DROP(3);
-  L_APPLIC_ERROR_NOT_A_CLOS_29: 
-	CMP(IND(R0), T_CLOSURE);
-	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_28) ;
-	PUSH(INDD(R0,1));
-	CALLA(INDD(R0,2));
-	DROP(3);
-  L_APPLIC_ERROR_NOT_A_CLOS_28: 
-	POP(FP);
-	RETURN;
-  L_CLOS_EXIT_27: 
-	PUSH(R0);
-	PUSH(1);
-
-		/* start applic*/
 		/* start lambda-simple*/
-	MOV(R3,IMM(2)); /* change R3 !!!*/
+	MOV(R3,IMM(2));
 	PUSH(IMM(3));
 	CALL(MALLOC);
 	DROP(1);
@@ -238,355 +137,34 @@ int main()
 	DROP(1);
 	MOV(INDD(R1,1),R0);
 	
-	for(i=0, j=1; i < R3-1;j++,i++){
-		MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-}
-	PUSH(FPARG(1));
-	printf("starg(-1) - %d, args -1",STARG(-1));
+								for(i=0, j=1; i < R3-1;j++,i++){
+									printf("copying I - %d\n",INDD(FPARG(0),i));
 
+									MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
+							} 
+	PUSH(FPARG(1));
 	CALL(MALLOC);
 	DROP(1);
 	MOV(R2,INDD(R1,1));
 	MOV(INDD(R2,0),R0);
-	printf("FPARG(1) - %d, args -1",FPARG(1));
-				
 	for(i=0; i < FPARG(1);i++){
-		MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-	}
+									printf("copying II - %d\n",FPARG(i+2));
 
-	MOV(INDD(R1,2),&& L_CLOS_CODE_15 );
-	MOV(R0,R1);
-	JUMP( L_CLOS_EXIT_16 );
-  L_CLOS_CODE_15: 
-	PUSH(FP);
-	MOV(FP,SP);
-		/* start applic*/
-		/* start lambda-simple*/
-	MOV(R3,IMM(3)); /* change R3 !!!*/
-	PUSH(IMM(3));
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R1,R0);
-	MOV(IND(R1),IMM(T_CLOSURE));
-	PUSH(R3);
-	CALL(MALLOC);
-	DROP(1);
-	MOV(INDD(R1,1),R0);
-	
-	for(i=0, j=1; i < R3-1;j++,i++){
-		MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-}
-	PUSH(FPARG(1));
-	printf("starg(-1) - %d, args -1",STARG(-1));
-
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R2,INDD(R1,1));
-	MOV(INDD(R2,0),R0);
-	printf("FPARG(1) - %d, args -1",FPARG(1));
-				
-	for(i=0; i < FPARG(1);i++){
-		MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-	}
-
-	MOV(INDD(R1,2),&& L_CLOS_CODE_18 );
-	MOV(R0,R1);
-	JUMP( L_CLOS_EXIT_19 );
-  L_CLOS_CODE_18: 
-	PUSH(FP);
-	MOV(FP,SP);
-		/* start lambda-simple*/
-	MOV(R3,IMM(4)); /* change R3 !!!*/
-	PUSH(IMM(3));
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R1,R0);
-	MOV(IND(R1),IMM(T_CLOSURE));
-	PUSH(R3);
-	CALL(MALLOC);
-	DROP(1);
-	MOV(INDD(R1,1),R0);
-	
-	for(i=0, j=1; i < R3-1;j++,i++){
-		MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-}
-	PUSH(FPARG(1));
-	printf("starg(-1) - %d, args -1",STARG(-1));
-
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R2,INDD(R1,1));
-	MOV(INDD(R2,0),R0);
-	printf("FPARG(1) - %d, args -1",FPARG(1));
-				
-	for(i=0; i < FPARG(1);i++){
-		MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-	}
-
-	MOV(INDD(R1,2),&& L_CLOS_CODE_20 );
-	MOV(R0,R1);
-	JUMP( L_CLOS_EXIT_21 );
-  L_CLOS_CODE_20: 
-	PUSH(FP);
-	MOV(FP,SP);
-		/* start lambda-simple*/
-	MOV(R3,IMM(5)); /* change R3 !!!*/
-	PUSH(IMM(3));
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R1,R0);
-	MOV(IND(R1),IMM(T_CLOSURE));
-	PUSH(R3);
-	CALL(MALLOC);
-	DROP(1);
-	MOV(INDD(R1,1),R0);
-	
-	for(i=0, j=1; i < R3-1;j++,i++){
-		MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-}
-	PUSH(FPARG(1));
-	printf("starg(-1) - %d, args -1",STARG(-1));
-
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R2,INDD(R1,1));
-	MOV(INDD(R2,0),R0);
-	printf("FPARG(1) - %d, args -1",FPARG(1));
-				
-	for(i=0; i < FPARG(1);i++){
-		MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-	}
-
-	MOV(INDD(R1,2),&& L_CLOS_CODE_22 );
-	MOV(R0,R1);
-	JUMP( L_CLOS_EXIT_23 );
-  L_CLOS_CODE_22: 
-	PUSH(FP);
-	MOV(FP,SP);
-		/* start applic*/
-		/* start bvar*/
-	MOV(R0, FPARG(0));
-	MOV(R0, INDD(R0,2));
-	MOV(R0, INDD(R0,0));
-	PUSH(R0);
-	PUSH(1);
-
-		/* start applic*/
-		/* start bvar*/
-	MOV(R0, FPARG(0));
-	MOV(R0, INDD(R0,1));
-	MOV(R0, INDD(R0,0));
-	PUSH(R0);
-	PUSH(1);
-
-		/* start pvar*/
-	MOV(R0,FPARG(2));
-	CMP(IND(R0), T_CLOSURE);
-	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_25) ;
-	PUSH(INDD(R0,1));
-	CALLA(INDD(R0,2));
-	DROP(3);
-  L_APPLIC_ERROR_NOT_A_CLOS_25: 
-	CMP(IND(R0), T_CLOSURE);
-	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_24) ;
-	PUSH(INDD(R0,1));
-	CALLA(INDD(R0,2));
-	DROP(3);
-  L_APPLIC_ERROR_NOT_A_CLOS_24: 
-	POP(FP);
-	RETURN;
-  L_CLOS_EXIT_23: 
-	POP(FP);
-	RETURN;
-  L_CLOS_EXIT_21: 
-	POP(FP);
-	RETURN;
-  L_CLOS_EXIT_19: 
-	PUSH(R0);
-	PUSH(1);
-
-		/* start pvar*/
-	MOV(R0,FPARG(2));
-	CMP(IND(R0), T_CLOSURE);
-	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_17) ;
-	PUSH(INDD(R0,1));
-	CALLA(INDD(R0,2));
-	DROP(3);
-  L_APPLIC_ERROR_NOT_A_CLOS_17: 
-	POP(FP);
-	RETURN;
-  L_CLOS_EXIT_16: 
-	PUSH(R0);
-	PUSH(1);
-
-		/* start applic*/
-		/* start lambda-simple*/
-	MOV(R3,IMM(2)); /* change R3 !!!*/
-	PUSH(IMM(3));
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R1,R0);
-	MOV(IND(R1),IMM(T_CLOSURE));
-	PUSH(R3);
-	CALL(MALLOC);
-	DROP(1);
-	MOV(INDD(R1,1),R0);
-	
-	for(i=0, j=1; i < R3-1;j++,i++){
-		MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-}
-	PUSH(FPARG(1));
-	printf("starg(-1) - %d, args -1",STARG(-1));
-
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R2,INDD(R1,1));
-	MOV(INDD(R2,0),R0);
-	printf("FPARG(1) - %d, args -1",FPARG(1));
-				
-	for(i=0; i < FPARG(1);i++){
-		MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-	}
-
-	MOV(INDD(R1,2),&& L_CLOS_CODE_9 );
-	MOV(R0,R1);
-	JUMP( L_CLOS_EXIT_10 );
-  L_CLOS_CODE_9: 
-	PUSH(FP);
-	MOV(FP,SP);
-		/* start lambda-simple*/
-	MOV(R3,IMM(3)); /* change R3 !!!*/
-	PUSH(IMM(3));
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R1,R0);
-	MOV(IND(R1),IMM(T_CLOSURE));
-	PUSH(R3);
-	CALL(MALLOC);
-	DROP(1);
-	MOV(INDD(R1,1),R0);
-	
-	for(i=0, j=1; i < R3-1;j++,i++){
-		MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-}
-	PUSH(FPARG(1));
-	printf("starg(-1) - %d, args -1",STARG(-1));
-
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R2,INDD(R1,1));
-	MOV(INDD(R2,0),R0);
-	printf("FPARG(1) - %d, args -1",FPARG(1));
-				
-	for(i=0; i < FPARG(1);i++){
-		MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-	}
-
-	MOV(INDD(R1,2),&& L_CLOS_CODE_11 );
-	MOV(R0,R1);
-	JUMP( L_CLOS_EXIT_12 );
-  L_CLOS_CODE_11: 
-	PUSH(FP);
-	MOV(FP,SP);
-		/* start applic*/
-		/* start applic*/
-		/* start pvar*/
-	MOV(R0,FPARG(2));
-	PUSH(R0);
-	PUSH(1);
-
-		/* start bvar*/
-	MOV(R0, FPARG(0));
-	MOV(R0, INDD(R0,1));
-	MOV(R0, INDD(R0,0));
-	CMP(IND(R0), T_CLOSURE);
-	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_14) ;
-	PUSH(INDD(R0,1));
-	CALLA(INDD(R0,2));
-	DROP(3);
-  L_APPLIC_ERROR_NOT_A_CLOS_14: 
-	PUSH(R0);
-	PUSH(1);
-
-		/* start bvar*/
-	MOV(R0, FPARG(0));
-	MOV(R0, INDD(R0,1));
-	MOV(R0, INDD(R0,0));
-	CMP(IND(R0), T_CLOSURE);
-	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_13) ;
-	PUSH(INDD(R0,1));
-	CALLA(INDD(R0,2));
-	DROP(3);
-  L_APPLIC_ERROR_NOT_A_CLOS_13: 
-	POP(FP);
-	RETURN;
-  L_CLOS_EXIT_12: 
-	POP(FP);
-	RETURN;
-  L_CLOS_EXIT_10: 
-	PUSH(R0);
-	PUSH(1);
-
-		/* start lambda-simple*/
-	MOV(R3,IMM(2)); /* change R3 !!!*/
-	PUSH(IMM(3));
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R1,R0);
-	MOV(IND(R1),IMM(T_CLOSURE));
-	PUSH(R3);
-	CALL(MALLOC);
-	DROP(1);
-	MOV(INDD(R1,1),R0);
-	
-	for(i=0, j=1; i < R3-1;j++,i++){
-		MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-}
-	PUSH(FPARG(1));
-	printf("starg(-1) - %d, args -1",STARG(-1));
-
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R2,INDD(R1,1));
-	MOV(INDD(R2,0),R0);
-	printf("FPARG(1) - %d, args -1",FPARG(1));
-				
-	for(i=0; i < FPARG(1);i++){
-		MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-	}
-
+									MOV(INDD(INDD(R2,0),i),FPARG(i+2));
+								} 
 	MOV(INDD(R1,2),&& L_CLOS_CODE_5 );
 	MOV(R0,R1);
 	JUMP( L_CLOS_EXIT_6 );
   L_CLOS_CODE_5: 
 	PUSH(FP);
 	MOV(FP,SP);
-		/* start applic*/
-		/* start applic*/
-		/* start pvar*/
-	MOV(R0,FPARG(2));
-	PUSH(R0);
-	PUSH(1);
-
-		/* start pvar*/
-	MOV(R0,FPARG(2));
-	CMP(IND(R0), T_CLOSURE);
-	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_8) ;
-	PUSH(INDD(R0,1));
-	CALLA(INDD(R0,2));
-	DROP(3);
-  L_APPLIC_ERROR_NOT_A_CLOS_8: 
-	PUSH(R0);
-	PUSH(1);
-
-		/* start pvar*/
-	MOV(R0,FPARG(2));
-	CMP(IND(R0), T_CLOSURE);
-	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_7) ;
-	PUSH(INDD(R0,1));
-	CALLA(INDD(R0,2));
-	DROP(3);
-  L_APPLIC_ERROR_NOT_A_CLOS_7: 
+printf(" 0- %d \n 1- %d \n 2- %d \n",FPARG(0),FPARG(1),FPARG(2));
+		 /* start code-gen body */ 
+		/* start bvar*/
+	MOV(R0, FPARG(0));
+	MOV(R0, INDD(R0,0));
+	MOV(R0, INDD(R0,1));
+		 /* finish code-gen body and finishing lambda */ 
 	POP(FP);
 	RETURN;
   L_CLOS_EXIT_6: 
@@ -596,23 +174,15 @@ int main()
 	CALLA(INDD(R0,2));
 	DROP(3);
   L_APPLIC_ERROR_NOT_A_CLOS_4: 
-	CMP(IND(R0), T_CLOSURE);
-	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_3) ;
-	PUSH(INDD(R0,1));
-	CALLA(INDD(R0,2));
-	DROP(3);
-  L_APPLIC_ERROR_NOT_A_CLOS_3: 
-	CMP(IND(R0), T_CLOSURE);
-	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_2) ;
-	PUSH(INDD(R0,1));
-	CALLA(INDD(R0,2));
-	DROP(3);
-  L_APPLIC_ERROR_NOT_A_CLOS_2: 
+		 /* finish code-gen body and finishing lambda */ 
+	POP(FP);
+	RETURN;
+  L_CLOS_EXIT_3: 
 	CMP(IND(R0), T_CLOSURE);
 	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_1) ;
 	PUSH(INDD(R0,1));
 	CALLA(INDD(R0,2));
-	DROP(3);
+	DROP(4);
   L_APPLIC_ERROR_NOT_A_CLOS_1: 
  END:
 	print_heap();

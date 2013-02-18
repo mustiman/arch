@@ -1,9 +1,0 @@
-Exception: STATUS_ACCESS_VIOLATION at eip=000437B5
-eax=000437B5 ebx=40FC0008 ecx=0000000F edx=00000001 esi=00000001 edi=00000003
-ebp=0027AC68 esp=0027A850 program=C:\cygwin\home\Tal\arch\out.exe, pid 6024, thread main
-cs=0023 ds=002B es=002B fs=0053 gs=002B ss=002B
-Stack trace:
-Frame     Function  Args
-0027AC68  000437B5  (00000001, 0027AC90, 20010100, 6127587A)
-0027ACF8  6100763A  (00000000, 0027CD78, 61006C50, 00000000)
-End of stack trace
