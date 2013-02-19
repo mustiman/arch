@@ -79,13 +79,15 @@ int main()
   DROP(3);
 
  int i,j;		/* start applic*/
-	MOV(R0,14);
+	MOV(R0,12);
 	PUSH(R0);
 	MOV(R0,12);
 	PUSH(R0);
-	PUSH(2);
+	MOV(R0,14);
+	PUSH(R0);
+	PUSH(3);
 
-		/* start lambda-simple*/
+		/* start lambda-opt*/
 	MOV(R3,IMM(1));
 	PUSH(IMM(3));
 	CALL(MALLOC);
@@ -98,8 +100,6 @@ int main()
 	MOV(INDD(R1,1),R0);
 	
 								for(i=0, j=1; i < R3-1;j++,i++){
-									printf("copying I - %d\n",INDD(FPARG(0),i));
-
 									MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
 							} 
 	PUSH(FPARG(1));
@@ -108,81 +108,45 @@ int main()
 	MOV(R2,INDD(R1,1));
 	MOV(INDD(R2,0),R0);
 	for(i=0; i < FPARG(1);i++){
-									printf("copying II - %d\n",FPARG(i+2));
-
 									MOV(INDD(INDD(R2,0),i),FPARG(i+2));
 								} 
-	MOV(INDD(R1,2),&& L_CLOS_CODE_2 );
+	MOV(INDD(R1,2),&& L_CLOS_OPT_CODE_2 );
 	MOV(R0,R1);
-	JUMP( L_CLOS_EXIT_3 );
-  L_CLOS_CODE_2: 
+	JUMP( L_CLOS_OPT_EXIT_3 );
+  L_CLOS_OPT_CODE_2: 
 	PUSH(FP);
 	MOV(FP,SP);
 printf(" 0- %d \n 1- %d \n 2- %d \n",FPARG(0),FPARG(1),FPARG(2));
-		 /* start code-gen body */ 
-		/* start applic*/
-	MOV(R0,12);
-	PUSH(R0);
-	PUSH(1);
-
-		/* start lambda-simple*/
-	MOV(R3,IMM(2));
-	PUSH(IMM(3));
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R1,R0);
-	MOV(IND(R1),IMM(T_CLOSURE));
-	PUSH(R3);
-	CALL(MALLOC);
-	DROP(1);
-	MOV(INDD(R1,1),R0);
-	
-								for(i=0, j=1; i < R3-1;j++,i++){
-									printf("copying I - %d\n",INDD(FPARG(0),i));
-
-									MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
+	MOV(R6,FPARG(1));
+	MOV(FPARG(1), IMM(2));
+	MOV(R0,IMM(11));
+for(i=R6; i > 1; i--){
+									PUSH(R0);
+									MOV(R7,R6);
+									ADD(R7,IMM(2));
+									PUSH(FPARG(R7));
+									CALL(MAKE_SOB_PAIR);
+									DROP(2);
 							} 
-	PUSH(FPARG(1));
-	CALL(MALLOC);
-	DROP(1);
-	MOV(R2,INDD(R1,1));
-	MOV(INDD(R2,0),R0);
-	for(i=0; i < FPARG(1);i++){
-									printf("copying II - %d\n",FPARG(i+2));
-
-									MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-								} 
-	MOV(INDD(R1,2),&& L_CLOS_CODE_5 );
-	MOV(R0,R1);
-	JUMP( L_CLOS_EXIT_6 );
-  L_CLOS_CODE_5: 
-	PUSH(FP);
-	MOV(FP,SP);
-printf(" 0- %d \n 1- %d \n 2- %d \n",FPARG(0),FPARG(1),FPARG(2));
-		 /* start code-gen body */ 
-		/* start bvar*/
-	MOV(R0, FPARG(0));
-	MOV(R0, INDD(R0,0));
-	MOV(R0, INDD(R0,1));
-		 /* finish code-gen body and finishing lambda */ 
+	MOV(R7,R0);
+	MOV(R8,SP);
+	SUB(R6, IMM(1));
+	SUB(R6,IMM(1));
+	SUB(R8,R6);
+printf("%d\n",R8);
+print_heap();print_stack("in optional");
+		 /* start code-gen body (in lambda opt) */ 
+		/* start pvar*/
+	MOV(R0,FPARG(3));
+		 /* finish code-gen body and finishing lambda-opt */ 
 	POP(FP);
 	RETURN;
-  L_CLOS_EXIT_6: 
-	CMP(IND(R0), T_CLOSURE);
-	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_4) ;
-	PUSH(INDD(R0,1));
-	CALLA(INDD(R0,2));
-	DROP(3);
-  L_APPLIC_ERROR_NOT_A_CLOS_4: 
-		 /* finish code-gen body and finishing lambda */ 
-	POP(FP);
-	RETURN;
-  L_CLOS_EXIT_3: 
+  L_CLOS_OPT_EXIT_3: 
 	CMP(IND(R0), T_CLOSURE);
 	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_1) ;
 	PUSH(INDD(R0,1));
 	CALLA(INDD(R0,2));
-	DROP(4);
+	DROP(5);
   L_APPLIC_ERROR_NOT_A_CLOS_1: 
  END:
 	print_heap();

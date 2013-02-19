@@ -671,6 +671,7 @@ int main()
 			((eq? (car pe) 'seq) (cg-seq pe env))
 			((eq? (car pe) 'or) (cg-or pe env))
 			((eq? (car pe) 'lambda-simple) (cg-lambda-simple pe (+ 1 env)))
+			((eq? (car pe) 'lambda-opt) (cg-lambda-opt pe (+ 1 env)))
 			((eq? (car pe) 'if-3) (cg-if-3 pe env))
 			((eq? (car pe) 'applic) (cg-applic pe env))
 			(else ""))))
@@ -701,8 +702,7 @@ int main()
 			  (exit-lable (lable-gen "L_CLOS_OPT_EXIT")))
 			(with pe
 				(lambda (_ args opt body)
-				   (let ((args-size (length args))
-						 (opt-size (length opt)))
+				   (let ((args-size (length args)))
 					(string-append "\t\t/* start lambda-opt*/\n"
 						"\tMOV(R3,IMM(" (number->string env) "));\n"
 						"\tPUSH(IMM(3));\n"
@@ -742,13 +742,29 @@ int main()
 										;stack fixing
 						"printf(\" 0- %d \\n 1- %d \\n 2- %d \\n\",FPARG(0),FPARG(1),FPARG(2));\n"
 						
-						"\tMOV(R6,FPARG(1);\n"
+						"\tMOV(R6,FPARG(1));\n"
 						"\tMOV(FPARG(1), IMM("(number->string (+ 1 args-size)) "));\n"
-						
-													"	
-								for(i=R6; i < ;j++,i++){
-									MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
+						"\tMOV(R0,IMM(11));\n"
+														
+								"for(i=R6; i > " (number->string args-size) "; i--){
+									PUSH(R0);
+									MOV(R7,R6);
+									ADD(R7,IMM(2));
+									PUSH(FPARG(R7));
+									CALL(MAKE_SOB_PAIR);
+									DROP(2);
 							} \n"
+							
+						"\tMOV(R7,R0);\n"
+						
+						"\tMOV(R8,SP);\n" ;old sp
+						"\tSUB(R6, IMM(" (number->string args-size) "));\n" ;optional size
+					;	"\tMOV(R10,IMM(1));\n"
+						"\tSUB(R6,IMM(1));\n" ;opt-1
+						"\tSUB(R8,R6);\n" ;sp - (opt -1)
+						"printf(\"%d\\n\",R8);\n"
+						"print_heap();"
+						"print_stack(\"in optional\");\n"
 						
 						
 						"\t\t /* start code-gen body (in lambda opt) */ \n"
