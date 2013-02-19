@@ -672,6 +672,7 @@ int main()
 			((eq? (car pe) 'or) (cg-or pe env))
 			((eq? (car pe) 'lambda-simple) (cg-lambda-simple pe (+ 1 env)))
 			((eq? (car pe) 'lambda-opt) (cg-lambda-opt pe (+ 1 env)))
+			((eq? (car pe) 'lambda-variadic) (cg-lambda-variadic pe (+ 1 env)))
 			((eq? (car pe) 'if-3) (cg-if-3 pe env))
 			((eq? (car pe) 'applic) (cg-applic pe env))
 			(else ""))))
@@ -693,13 +694,25 @@ int main()
 						"\tJUMP_NE (" error-lable ") ;\n"
 						"\tPUSH(INDD(R0,1));\n"
 						"\tCALLA(INDD(R0,2));\n"
-						"\tDROP(" (number->string (+ 2 (length params) )) ");\n"
+						"\tMOV(R3,STARG(0));\n"
+						"\tADD(R3,IMM(2));\n"
+						"\tDROP(R3);\n"
 						" " error-lable ": \n"))))))
 
 (define cg-lambda-opt
 	(lambda (pe env)
 		(let ((code-lable (lable-gen "L_CLOS_OPT_CODE"))
-			  (exit-lable (lable-gen "L_CLOS_OPT_EXIT")))
+			  (exit-lable (lable-gen "L_CLOS_OPT_EXIT"))
+			  (start-env-loop (lable-gen "L_ENV_LOOP"))
+			  (end-env-loop (lable-gen "L_ENV_LOOP_END"))
+			  (start-params-loop (lable-gen "L_PARAMS_LOOP"))
+			  (end-params-loop (lable-gen "L_PARAMS_LOOP_END"))
+			  (start-pair-loop (lable-gen "L_PAIR_LOOP_START"))
+			  (end-pair-loop (lable-gen "L_PAIR_LOOP_END"))
+			  (start-true-loop (lable-gen "L_TRUE_LOOP_START"))
+			  (end-fix-loop (lable-gen "L_FIX_LOOP_END"))
+			  (start-false (lable-gen "L_FALSE_START"))
+			  (start-false-loop (lable-gen "L_FALSE_LOOP_START")))
 			(with pe
 				(lambda (_ args opt body)
 				   (let ((args-size (length args)))
@@ -715,11 +728,21 @@ int main()
 						"\tDROP(1);\n"
 						"\tMOV(INDD(R1,1),R0);\n"
 
-							"	
-								for(i=0, j=1; i < R3-1;j++,i++){
-									MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-							} \n"
-							
+							;extend the env
+						"\t\t/* starts extend env loop */\n"
+						"\tMOV(R4,IMM(0));\n" ;R4 =i
+						"\tMOV(R5,IMM(1));\n" ;R5=j
+						"\tSUB(R3,IMM(1));\n"
+						
+						" " start-env-loop ": \n"
+						"\tCMP(R4,R3);\n"
+						"\tJUMP_EQ( " end-env-loop " );\n"
+						"\tMOV(INDD(INDD(R1,1),R5),INDD(FPARG(0),R4));\n"
+						"\tADD(R4,IMM(1));\n"
+						"\tADD(R5,IMM(1));\n"
+						"\tJUMP( " start-env-loop " );\n"
+						"\t\t/* ends extend env loop */\n"
+						" " end-env-loop ": \n"		
 
 						"\tPUSH(FPARG(1));\n"
 						"\tCALL(MALLOC);\n"
@@ -727,9 +750,20 @@ int main()
 						"\tMOV(R2,INDD(R1,1));\n"
 						"\tMOV(INDD(R2,0),R0);\n"
 
-							"	for(i=0; i < FPARG(1);i++){
-									MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-								} \n"
+							;extend the env with params
+						"\t\t/* starts extend env[0] with params loop */\n"
+						"\tMOV(R4,IMM(0));\n" ;R4 =i
+						
+						" " start-params-loop ": \n"
+						"\tCMP(R4,FPARG(1));\n"
+						"\tJUMP_EQ( " end-params-loop " );\n"
+						"\tMOV(R5,R4);\n"
+						"\tADD(R5,IMM(2));\n" ;R5 =i+2
+						"\tMOV(INDD(INDD(R2,IMM(0)),R4),FPARG(R5));\n"
+						"\tADD(R4,IMM(1));\n" ;i++
+						"\tJUMP( " start-params-loop " );\n"
+						"\t\t/* ends extend env[0] with param loop */\n"
+						" " end-params-loop ": \n"							
 
 						"\tMOV(INDD(R1,2),&&" code-lable " );\n"
 						"\tMOV(R0,R1);\n"
@@ -742,30 +776,110 @@ int main()
 										;stack fixing
 						"printf(\" 0- %d \\n 1- %d \\n 2- %d \\n\",FPARG(0),FPARG(1),FPARG(2));\n"
 						
-						"\tMOV(R6,FPARG(1));\n"
+						"\tMOV(R6,FPARG(1));\n" ;number of all arguments
 						"\tMOV(FPARG(1), IMM("(number->string (+ 1 args-size)) "));\n"
 						"\tMOV(R0,IMM(11));\n"
-														
-								"for(i=R6; i > " (number->string args-size) "; i--){
-									PUSH(R0);
-									MOV(R7,R6);
-									ADD(R7,IMM(2));
-									PUSH(FPARG(R7));
-									CALL(MAKE_SOB_PAIR);
-									DROP(2);
-							} \n"
+						
+								;create pairs	
+						"\t\t/* starts create pairs loop */\n"
+						"\tMOV(R9,R6);\n" ;i=R9
+						"\tMOV(R10,IMM(" (number->string args-size) "));\n"
+						
+						" " start-pair-loop ": \n"
+						"\tCMP(R9,R10);\n"
+						"\tJUMP_EQ( " end-pair-loop " );\n"
+						"\tPUSH(R0);\n"
+						"\tMOV(R7,R9);\n"
+						"\tADD(R7,IMM(1));\n"
+						"\tPUSH(FPARG(R7));\n"
+						"\tCALL(MAKE_SOB_PAIR);\n"
+						"\tDROP(2);\n"
+						"\tSUB(R9,IMM(1));\n"
+						"\tJUMP( " start-pair-loop " );\n"	
+						"\t\t/* ends create pairs loop */\n"
+						" " end-pair-loop ": \n"		
+						
+									;create pairs					
+							;	"for(i=R6; i > " (number->string args-size) "; i--){
+							;		PUSH(R0);
+							;		MOV(R7,i);
+							;		ADD(R7,IMM(1));
+							;		PUSH(FPARG(R7));
+							;		CALL(MAKE_SOB_PAIR);
+							;		DROP(2);
+						;	} \n"
 							
 						"\tMOV(R7,R0);\n"
 						
 						"\tMOV(R8,SP);\n" ;old sp
+						"\tMOV(R11,R6);\n";
 						"\tSUB(R6, IMM(" (number->string args-size) "));\n" ;optional size
-					;	"\tMOV(R10,IMM(1));\n"
 						"\tSUB(R6,IMM(1));\n" ;opt-1
 						"\tSUB(R8,R6);\n" ;sp - (opt -1)
-						"printf(\"%d\\n\",R8);\n"
-						"print_heap();"
-						"print_stack(\"in optional\");\n"
 						
+								;fixing stack	
+						"\t\t/* starts fixing the stack */\n"
+						
+						"\tCMP(R6,IMM(-1));\n" ;check if num of args is greater than 0
+						"\tJUMP_EQ( " start-false " );\n"
+						
+								;more than 0 args loop	
+						"\t\t/* starts copying down loop */\n"
+						"\tMOV(R12,IMM(" (number->string args-size) "));\n" 
+						"\tADD(R12,IMM(2));\n" ;R12 = i = num of args + 2
+						"\tMOV(R13,R11);\n" 
+						"\tADD(R13,IMM(1));\n" ;R13 = j
+												
+						" " start-true-loop ": \n"
+						"\tCMP(R12,IMM(-3));\n" ;check if end of loop
+						"\tJUMP_EQ( " end-fix-loop " );\n"
+						"\tMOV(FPARG(R13),FPARG(R12));\n"						
+						"\tSUB(R12,IMM(1));\n" ;i--
+						"\tSUB(R13,IMM(1));\n" ;j--
+						"\tJUMP( " start-true-loop " );\n"
+						
+						" " start-false ": \n"
+									; 0 args loop	
+						"\t\t/* starts copying up loop */\n"
+						"\tMOV(R12,IMM(-2));\n" ;R12 = i = -2
+						"\tMOV(R13,R11);\n" 
+						"\tADD(R13,IMM(2));\n" ;R13 = R11+2
+												
+						" " start-false-loop ": \n"
+						"\tCMP(R12,R13);\n" ;check if end of loop	
+						"\tJUMP_EQ( " end-fix-loop " );\n"
+						"\tMOV(R14,R12);\n" ;
+						"\tSUB(R14,IMM(1));\n" ;R14 = i-1
+						"\tMOV(FPARG(R14),FPARG(R12));\n"
+						"\tADD(R12,IMM(1));\n" ;i++
+						"\tJUMP( " start-false-loop " );\n"
+						
+						;"if(R6 > -1){"
+						;	"for(j=R11+1,i= 2+ "(number->string args-size)" ; i > -3 ; i--,j--){
+						;	printf(\"from: %d -> to: %d\\n\", FPARG(i),FPARG(j));
+						;	"
+						;	"\tMOV(FPARG(j),FPARG(i));\n"
+						;	"
+						;	} }
+						
+						
+						;	else{\n"
+						;	"printf(\"other\");\n"
+						;	"for(i=-2 ; i < R11+2 ; i++){
+						;		printf(\"from: %d -> to: %d\\n\", FPARG(i),FPARG(i-1));
+						;	"
+						;	"\tMOV(FPARG(i-1),FPARG(i));\n"
+						;	"
+						;	} }
+						;	\n"
+						
+						"\t\t/* finish fixing the stack */\n"
+						" " end-fix-loop ": \n"
+						
+						"\tADD(R11,IMM(1));\n"
+						"\tMOV(FPARG(R11),R7);\n" ;put opt list
+						"\tMOV(SP,R8);\n"
+						"\tMOV(FP,SP);\n"						
 						
 						"\t\t /* start code-gen body (in lambda opt) */ \n"
 								
@@ -775,11 +889,209 @@ int main()
 						"\tRETURN;\n"
 						  
 						" " exit-lable ": \n")))))))
+
+(define cg-lambda-variadic
+	(lambda (pe env)
+		(let ((code-lable (lable-gen "L_CLOS_VAR_CODE"))
+			  (exit-lable (lable-gen "L_CLOS_VAR_EXIT"))
+			  (start-env-loop (lable-gen "L_ENV_LOOP"))
+			  (end-env-loop (lable-gen "L_ENV_LOOP_END"))
+			  (start-params-loop (lable-gen "L_PARAMS_LOOP"))
+			  (end-params-loop (lable-gen "L_PARAMS_LOOP_END"))
+			  (start-pair-loop (lable-gen "L_PAIR_LOOP_START"))
+			  (end-pair-loop (lable-gen "L_PAIR_LOOP_END"))
+			  (start-true-loop (lable-gen "L_TRUE_LOOP_START"))
+			  (end-fix-loop (lable-gen "L_FIX_LOOP_END"))
+			  (start-false (lable-gen "L_FALSE_START"))
+			  (start-false-loop (lable-gen "L_FALSE_LOOP_START")))
+			(with pe
+				(lambda (_ args body)
+					(string-append "\t\t/* start lambda-var*/\n"
+						"\tMOV(R3,IMM(" (number->string env) "));\n"
+						"\tPUSH(IMM(3));\n"
+						"\tCALL(MALLOC);\n"
+						"\tDROP(1);\n"
+						"\tMOV(R1,R0);\n"
+						"\tMOV(IND(R1),IMM(T_CLOSURE));\n"
+						"\tPUSH(R3);\n"
+						"\tCALL(MALLOC);\n"
+						"\tDROP(1);\n"
+						"\tMOV(INDD(R1,1),R0);\n"
+						
+							;extend the env
+						"\t\t/* starts extend env loop */\n"
+						"\tMOV(R4,IMM(0));\n" ;R4 =i
+						"\tMOV(R5,IMM(1));\n" ;R5=j
+						"\tSUB(R3,IMM(1));\n"
+						
+						" " start-env-loop ": \n"
+						"\tCMP(R4,R3);\n"
+						"\tJUMP_EQ( " end-env-loop " );\n"
+						"\tMOV(INDD(INDD(R1,1),R5),INDD(FPARG(0),R4));\n"
+						"\tADD(R4,IMM(1));\n"
+						"\tADD(R5,IMM(1));\n"
+						"\tJUMP( " start-env-loop " );\n"
+						"\t\t/* ends extend env loop */\n"
+						" " end-env-loop ": \n"		
+						
+						;	"	
+						;		for(i=0, j=1; i < R3-1;j++,i++){
+						;			MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
+						;	} \n"
+							
+
+						"\tPUSH(FPARG(1));\n"
+						"\tCALL(MALLOC);\n"
+						"\tDROP(1);\n"
+						"\tMOV(R2,INDD(R1,1));\n"
+						"\tMOV(INDD(R2,0),R0);\n"
+						
+							;extend the env with params
+						"\t\t/* starts extend env[0] with params loop */\n"
+						"\tMOV(R4,IMM(0));\n" ;R4 =i
+						
+						" " start-params-loop ": \n"
+						"\tCMP(R4,FPARG(1));\n"
+						"\tJUMP_EQ( " end-params-loop " );\n"
+						"\tMOV(R5,R4);\n"
+						"\tADD(R5,IMM(2));\n" ;R5 =i+2
+						"\tMOV(INDD(INDD(R2,IMM(0)),R4),FPARG(R5));\n"
+						"\tADD(R4,IMM(1));\n" ;i++
+						"\tJUMP( " start-params-loop " );\n"
+						"\t\t/* ends extend env[0] with param loop */\n"
+						" " end-params-loop ": \n"							
+						
+
+						;	"	for(i=0; i < FPARG(1);i++){
+						;			MOV(INDD(INDD(R2,0),i),FPARG(i+2));
+						;		} \n"
+
+						"\tMOV(INDD(R1,IMM(2)),&&" code-lable " );\n"
+						"\tMOV(R0,R1);\n"
+						"\tJUMP(" exit-lable " );\n"
+						  
+						" " code-lable ": \n"
+						"\tPUSH(FP);\n"
+						"\tMOV(FP,SP);\n"
+									;code generation (part B)
+										;stack fixing
+						"printf(\" 0- %d \\n 1- %d \\n 2- %d \\n\",FPARG(0),FPARG(1),FPARG(2));\n"
+						
+						"\tMOV(R6,FPARG(1));\n" ;number of all arguments
+						"\tMOV(FPARG(1), IMM(1));\n"
+						"\tMOV(R0,IMM(11));\n"
+
+								;create pairs	
+						"\t\t/* starts create pairs loop */\n"
+						"\tMOV(R9,R6);\n" ;i=R9
+						;"\tMOV(R10,IMM(" (number->string args-size) "));\n"
+						
+						" " start-pair-loop ": \n"
+						"\tCMP(R9,IMM(0));\n"
+						"\tJUMP_EQ( " end-pair-loop " );\n"
+						"\tPUSH(R0);\n"
+						"\tMOV(R7,R9);\n"
+						"\tADD(R7,IMM(1));\n"
+						"\tPUSH(FPARG(R7));\n"
+						"\tCALL(MAKE_SOB_PAIR);\n"
+						"\tDROP(2);\n"
+						"\tSUB(R9,IMM(1));\n"
+						"\tJUMP( " start-pair-loop " );\n"	
+						"\t\t/* ends create pairs loop */\n"
+						" " end-pair-loop ": \n"							
+
+							;create pairs					
+						;		"for(i=R6; i > 0; i--){
+						;			PUSH(R0);
+						;			MOV(R7,i);
+						;			ADD(R7,IMM(1));
+						;			PUSH(FPARG(R7));
+						;			CALL(MAKE_SOB_PAIR);
+						;			DROP(2);
+						;	} \n"
+
+						"\tMOV(R7,R0);\n"
+						
+						"\tMOV(R8,SP);\n" ;old sp
+						"\tMOV(R11,R6);\n";
+						"\tSUB(R6,IMM(1));\n" ;args-1
+						"\tSUB(R8,R6);\n" ;sp - (args -1)
+						
+								;fixing stack	
+						"\t\t/* starts fixing the stack */\n"
+						
+						"\tCMP(R6,IMM(-1));\n" ;check if num of args is greater than 0
+						"\tJUMP_EQ( " start-false " );\n"
+						
+								;more than 0 args loop	
+						"\t\t/* starts copying down loop */\n"
+						"\tMOV(R12,IMM(2));\n" ;R12 = i = 2
+						"\tMOV(R13,R11);\n" 
+						"\tADD(R13,IMM(1));\n" ;R13 = j
+												
+						" " start-true-loop ": \n"
+						"\tCMP(R12,IMM(-3));\n" ;check if end of loop
+						"\tJUMP_EQ( " end-fix-loop " );\n"
+						"\tMOV(FPARG(R13),FPARG(R12));\n"						
+						"\tSUB(R12,IMM(1));\n" ;i--
+						"\tSUB(R13,IMM(1));\n" ;j--
+						"\tJUMP( " start-true-loop " );\n"
+						
+						" " start-false ": \n"
+									; 0 args loop	
+						"\t\t/* starts copying up loop */\n"
+						"\tMOV(R12,IMM(-2));\n" ;R12 = i = -2
+						"\tMOV(R13,IMM(2));\n" ;R13 = 2
+												
+						" " start-false-loop ": \n"
+						"\tCMP(R12,R13);\n" ;check if end of loop	
+						"\tJUMP_EQ( " end-fix-loop " );\n"
+						"\tMOV(R14,R12);\n" ;
+						"\tSUB(R14,IMM(1));\n" ;R14 = i-1
+						"\tMOV(FPARG(R14),FPARG(R12));\n"
+						"\tADD(R12,IMM(1));\n" ;i++
+						"\tJUMP( " start-false-loop " );\n"
+
+					;	"if(R6 > -1){"
+					;		"for(j=R11+1,i= 2 ; i > -3 ; i--,j--){
+					;		printf(\"from: %d -> to: %d\\n\", FPARG(i),FPARG(j));
+					;		"
+					;		"\tMOV(FPARG(j),FPARG(i));\n"
+					;		"
+					;		} }
+					;		else{\n"
+					;		"printf(\"other\");\n"
+					;		"for(i=-2 ; i < 2 ; i++){
+					;			printf(\"from: %d -> to: %d\\n\", FPARG(i),FPARG(i-1));
+					;		"
+					;		"\tMOV(FPARG(i-1),FPARG(i));\n"
+					;		"
+					;		} }
+					;		\n"
+					
+						"\t\t/* finish fixing the stack */\n"
+						" " end-fix-loop ": \n"
+						
+						"\tMOV(SP,R8);\n"
+						"\tMOV(FP,SP);\n"
+						"\tMOV(FPARG(IMM(2)),R7);\n" ;put variadic list
+						
+						"\t\t /* start code-gen body (in lambda var) */ \n"								
+						  (code-gen body env '())
+						"\t\t /* finish code-gen body and finishing lambda-var */ \n"
+						"\tPOP(FP);\n"
+						"\tRETURN;\n"
+						  
+						" " exit-lable ": \n"))))))
 						
 (define cg-lambda-simple
 	(lambda (pe env)
 		(let ((code-lable (lable-gen "L_CLOS_CODE"))
-			  (exit-lable (lable-gen "L_CLOS_EXIT")))
+			  (exit-lable (lable-gen "L_CLOS_EXIT"))
+			  (start-env-loop (lable-gen "L_ENV_LOOP"))
+			  (end-env-loop (lable-gen "L_ENV_LOOP_END"))
+			  (start-params-loop (lable-gen "L_PARAMS_LOOP"))
+			  (end-params-loop (lable-gen "L_PARAMS_LOOP_END")))
 			(with pe
 				(lambda (_ args body)
 					(string-append "\t\t/* start lambda-simple*/\n"
@@ -793,13 +1105,22 @@ int main()
 						"\tCALL(MALLOC);\n"
 						"\tDROP(1);\n"
 						"\tMOV(INDD(R1,1),R0);\n"
-							;extend the env
-							"	
-								for(i=0, j=1; i < R3-1;j++,i++){
-									printf(\"copying I - %d\\n\",INDD(FPARG(0),i));\n
-									MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-							} \n"
-							
+
+						;extend the env
+						"\t\t/* starts extend env loop */\n"
+						"\tMOV(R4,IMM(0));\n" ;R4 =i
+						"\tMOV(R5,IMM(1));\n" ;R5=j
+						"\tSUB(R3,IMM(1));\n"
+						
+						" " start-env-loop ": \n"
+						"\tCMP(R4,R3);\n"
+						"\tJUMP_EQ( " end-env-loop " );\n"
+						"\tMOV(INDD(INDD(R1,1),R5),INDD(FPARG(0),R4));\n"
+						"\tADD(R4,IMM(1));\n"
+						"\tADD(R5,IMM(1));\n"
+						"\tJUMP( " start-env-loop " );\n"
+						"\t\t/* ends extend env loop */\n"
+						" " end-env-loop ": \n"							
 
 						"\tPUSH(FPARG(1));\n"
 						"\tCALL(MALLOC);\n"
@@ -807,12 +1128,22 @@ int main()
 						"\tMOV(R2,INDD(R1,1));\n"
 						"\tMOV(INDD(R2,0),R0);\n"
 
-							"	for(i=0; i < FPARG(1);i++){
-									printf(\"copying II - %d\\n\",FPARG(i+2));\n
-									MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-								} \n"
+						;extend the env with params
+						"\t\t/* starts extend env[0] with params loop */\n"
+						"\tMOV(R4,IMM(0));\n" ;R4 =i
+						
+						" " start-params-loop ": \n"
+						"\tCMP(R4,FPARG(1));\n"
+						"\tJUMP_EQ( " end-params-loop " );\n"
+						"\tMOV(R5,R4);\n"
+						"\tADD(R5,IMM(2));\n" ;R5 =i+2
+						"\tMOV(INDD(INDD(R2,IMM(0)),R4),FPARG(R5));\n"
+						"\tADD(R4,IMM(1));\n" ;i++
+						"\tJUMP( " start-params-loop " );\n"
+						"\t\t/* ends extend env[0] with param loop */\n"
+						" " end-params-loop ": \n"							
 
-						"\tMOV(INDD(R1,2),&&" code-lable " );\n"
+						"\tMOV(INDD(R1,IMM(2)),&&" code-lable " );\n"
 						"\tMOV(R0,R1);\n"
 						"\tJUMP(" exit-lable " );\n"
 						  
