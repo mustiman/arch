@@ -1,0 +1,8 @@
+/* scheme.lib
+ * Support for creating & manipulating Scheme objects in assembly
+ *
+ * Programmer: Mayer Goldberg, 2010
+ */
+
+#include "lib/primitive/not.asm"
+

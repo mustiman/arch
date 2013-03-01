@@ -10,6 +10,13 @@
       (op (car lst)
           (accumulate op init (cdr lst)))))
 
+(define (filter pred lst)
+  (cond ((null? lst) '())
+        ((pred (car lst))
+           (cons (car lst)
+                 (filter pred (cdr lst))))
+        (else (filter pred (cdr lst)))))
+
 (define with (lambda (s f) (apply f s)))
 
 (define member?
@@ -555,6 +562,8 @@
 (define dec-env
 		(lambda () (begin(set! env-size (- env-size 1)) "**********")))
 
+(define constant-list '())
+
 (define compile-scheme-file1
 	(lambda (input-file output-file)
 		(let ((debug (close-output-port (open-output-file output-file))))
@@ -625,6 +634,7 @@ int main()
 #include \"math.lib\"
 #include \"string.lib\"
 #include \"system.lib\"
+#include \"primitive.lib\"
 
  CONTINUE:
   /* initial the stack */
@@ -643,7 +653,12 @@ int main()
   CALL(MAKE_SOB_BOOL);
   PUSH(IMM(1));
   CALL(MAKE_SOB_BOOL);
-  DROP(3);\n\n int i,j;") ;;;;;;;;;; delete i j
+  DROP(3);
+  
+ /* initial constants-list*/\n")
+  
+			  (const-initial (begin (set! constant-list (make-const-list input-scheme)) 
+									(initial-const-list constant-list)))
 			  (middle-result (code-gen input-scheme 0 '()))			  
 			  (end-result " END:
 	print_heap();
@@ -657,7 +672,7 @@ int main()
   return 0;
 }
 "))
-			(display (string-append start-result middle-result end-result) out)
+			(display (string-append start-result const-initial middle-result end-result) out)
 			(close-output-port out))))
 			
 (define code-gen
@@ -665,7 +680,15 @@ int main()
 		(cond
 			((eq? (car pe) 'const)
 				(cond
-					((boolean? (cadr pe)) (cg-bool (cadr pe) env))))
+					((boolean? (cadr pe)) (cg-bool (cadr pe)))
+					((null? (cadr pe)) (cg-null))
+					((eq? (cadr pe) (void)) (cg-void))
+					((integer? (cadr pe)) (cg-int (const-lookup 'integer (cadr pe))))
+					((char? (cadr pe)) (cg-char (const-lookup 'char (char->integer (cadr pe)))))
+					((string? (cadr pe)) (cg-string-symbol-vec (const-lookup 'string (cadr pe))))
+					((symbol? (cadr pe)) (cg-string-symbol-vec (const-lookup 'symbol (cadr pe))))
+					((vector? (cadr pe)) (cg-string-symbol-vec (const-lookup 'vector (cadr pe))))
+					(else "")))
 			((eq? (car pe) 'pvar) (cg-pvar pe env))
 			((eq? (car pe) 'bvar) (cg-bvar pe env))
 			((eq? (car pe) 'seq) (cg-seq pe env))
@@ -689,6 +712,7 @@ int main()
 								"\tPUSH(R0);\n"
 								y)) "" (reverse params))
 						"\tPUSH(" (number->string (length params)) ");\n\n"
+						(if (primitive? proc) (primitive-code-gen proc) (string-append
 						(code-gen proc env '())
 						"\tCMP(IND(R0), T_CLOSURE);\n"
 						"\tJUMP_NE (" error-lable ") ;\n"
@@ -1188,9 +1212,29 @@ int main()
 							"\n" exit-lable ": \n"))))))
 								
 (define cg-bool
-	(lambda (bool env)
+	(lambda (bool)
 		(if (eq? bool #t) "\tMOV(R0,14);\n" "\tMOV(R0,12);\n")))
-			
+
+(define cg-null
+	(lambda ()
+		"\tMOV(R0,11);\n" ))
+
+(define cg-void
+	(lambda ()
+		"\tMOV(R0,10);\n" ))
+		
+(define cg-int
+	(lambda (address)
+		(string-append "\tMOV(R0,IMM(" (number->string address) "));\n")))
+
+(define cg-char
+	(lambda (address)
+		(string-append "\tMOV(R0,IMM(" (number->string address) "));\n")))
+
+(define cg-string-symbol-vec
+	(lambda (address)
+		(string-append "\tMOV(R0,IMM(" (number->string address) "));\n")))
+
 (define cg-seq
 	(lambda (pe env)
 		(with pe
@@ -1214,12 +1258,188 @@ int main()
 					"\tMOV(R0, INDD(R0,"(number->string maj )"));\n"
 					"\tMOV(R0, INDD(R0,"(number->string minor)"));\n"
 					)))))
+		
+
+;-------------------------------------------constant table implemetation--------------------------------------;
+(define initial-const-list
+	(lambda(const-list)
+		(cond 
+			((null? const-list) " /*finish initiate constants-list*/\n")
+			((eq? 'integer (caar const-list)) 
+				(string-append
+					"\tPUSH(IMM(" (number->string (cadar const-list)) "));\n"
+					"\tCALL(MAKE_SOB_INTEGER);\n"
+					"\tDROP(1);\n"
+					(initial-const-list (cdr const-list))))
+			((eq? 'char (caar const-list)) 
+				(string-append
+					"\tPUSH(IMM(" (number->string (cadar const-list)) "));\n"
+					"\tCALL(MAKE_SOB_CHAR);\n"
+					"\tDROP(1);\n"
+					(initial-const-list (cdr const-list))))
+			((eq? 'string (caar const-list))
+				(string-append
+					(accumulate (lambda (x y)
+									(string-append
+											"\tPUSH(IMM(" (number->string (char->integer x))"));\n" y))
+						""  (string->list (cadar const-list)))
+					"\tPUSH(IMM(" (number->string (string-length (cadar const-list))) "));\n" ;num of args
+					"\tCALL(MAKE_SOB_STRING);\n"
+					"\tDROP(" (number->string (+ 1 (string-length (cadar const-list)))) ");\n"
+					(initial-const-list (cdr const-list))))
+			((eq? 'symbol (caar const-list))
+				(string-append
+					(accumulate (lambda (x y)
+									(string-append
+											"\tPUSH(IMM(" (number->string (char->integer x))"));\n" y))
+						""  (string->list (symbol->string (cadar const-list))))
+					"\tPUSH(IMM(" (number->string (string-length (symbol->string (cadar const-list)))) "));\n" ;num of args
+					"\tCALL(MAKE_SOB_SYMBOL);\n"
+					"\tDROP(" (number->string (+ 1 (string-length (symbol->string(cadar const-list))))) ");\n"
+					(initial-const-list (cdr const-list))))
+			((eq? 'vector (caar const-list)) 
+				(string-append
+					(create-vector (vector->list (cadar const-list)))
+					"\tPUSH(IMM(" (number->string (length (vector->list (cadar const-list)))) "));\n" ;num of args in vector
+					"\tCALL(MAKE_SOB_VECTOR);\n"
+					"\tDROP(" (number->string (+ 1 (length (vector->list (cadar const-list))))) ");\n"
+					(initial-const-list (cdr const-list))))
+			(else "\n"))))
+			
+
+(define create-vector
+	(lambda(vector-list)
+		(cond 
+			((null? vector-list) "")
+			((integer? (car vector-list)) 
+				(string-append
+					"\tPUSH(IMM(" (number->string (car vector-list)) "));\n"
+					"\tCALL(MAKE_SOB_INTEGER);\n"
+					"\tDROP(1);\n"
+					"\tPUSH(R0);\n"
+					(create-vector (cdr vector-list))))
+			((char? (car vector-list)) 
+				(string-append
+					"\tPUSH(IMM(" (number->string (char->integer (car vector-list))) "));\n"
+					"\tCALL(MAKE_SOB_CHAR);\n"
+					"\tDROP(1);\n"
+					"\tPUSH(R0);\n"
+					(create-vector (cdr vector-list))))
+			((string? (car vector-list))
+				(string-append
+					(accumulate (lambda (x y)
+									(string-append
+											"\tPUSH(IMM(" (number->string (char->integer x))"));\n" y))
+						""  (string->list (car vector-list)))
+					"\tPUSH(IMM(" (number->string (string-length (car vector-list))) "));\n" ;num of args
+					"\tCALL(MAKE_SOB_STRING);\n"
+					"\tDROP(" (number->string (+ 1 (string-length (car vector-list)))) ");\n"
+					"\tPUSH(R0);\n"
+					(create-vector (cdr vector-list))))
+			((symbol? (car vector-list))
+				(string-append
+					(accumulate (lambda (x y)
+									(string-append
+											"\tPUSH(IMM(" (number->string (char->integer x))"));\n" y))
+						""  (string->list (symbol->string (car vector-list))))
+					"\tPUSH(IMM(" (number->string (string-length (symbol->string (car vector-list)))) "));\n" ;num of args
+					"\tCALL(MAKE_SOB_SYMBOL);\n"
+					"\tDROP(" (number->string (+ 1 (string-length (symbol->string(car vector-list))))) ");\n"
+					"\tPUSH(R0);\n"
+					(create-vector (cdr vector-list))))
+			((vector? (car vector-list))
+				(string-append
+					(create-vector (vector->list (car vector-list)))
+					"\tPUSH(IMM(" (number->string (length (vector->list (car vector-list)))) "));\n" ;num of args in vector
+					"\tCALL(MAKE_SOB_VECTOR);\n"
+					"\tDROP(" (number->string (+ 1 (length (vector->list (car vector-list))))) ");\n"
+					"\tPUSH(R0);\n"
+					(create-vector (cdr vector-list))))
+			(else "\n"))))
+	
+;(define initial-const-list1
+;	(lambda(const-list)
+;		(string-append "\t\t/* initial constants-list*/\n"
+;					(accumulate (lambda (x y)
+;						(string-append
+;							(cond 
+;								((integer? (cadr x)) 
+;										"\tPUSH(IMM( " (number->string (cadr x)) " ));\n"
+;										"\tCALL(MAKE_SOB_INTEGER);\n"
+;										"\tDROP(1);\n")
+;								(else ""))) y) "" const-list))))
+;
+
+;check if leaf is constant		 
+(define leaf?
+	(lambda (c)
+		(and (list? c) (eq? (car c) 'const) (not (or (null? (cadr c)) (boolean? (cadr c)) (eq? (cadr c) (void)))))))
+
+;creates an orderd list of triples	(type,value,address) without duplicates	
+(define make-const-list 
+	(lambda (input)
+		(reverse
+			(map make-triplate 
+				(remove-dup 
+					(map (lambda (x) (cadr x)) (filter list? (find-consts input)))
+					'())))))
+
+;flate the code list but keep the constants in pairs	
+(define find-consts
+	(lambda (input)
+		(cond ((null? input) '()) 
+			  ((atom? input) (list input))
+			  ((leaf? input) (list input))		
+			  (else 			
+				(append (find-consts (car input))
+					(find-consts (cdr input))))))) 
+														
+;delete duplicates from the constants list
+(define remove-dup
+	(lambda (old new)
+		(cond 
+			((null? old) new)
+			((not (member (car old) new)) (remove-dup (cdr old) (append new (list (car old)))))
+			(else (remove-dup (cdr old) new)))))
+
+;constatns address simulator
+(define free-const-address 16) ;;constant address counter
+
+;allocates the new address
+(define get-free-add
+	(lambda (size)
+		(set! free-const-address (+ size free-const-address)) (- free-const-address size)))
+
+;creats constans structure
+(define make-triplate
+	(lambda (const)
+		(cond
+			((integer? const) (list 'integer const (get-free-add 2)))
+			((char? const) (list 'char (char->integer const) (get-free-add 2)))
+			((symbol? const) (list 'symbol const (get-free-add (+ 2  (string-length (symbol->string const))))))
+			((string? const) (list 'string const (get-free-add (+ 2 (string-length const)))))
+			((vector? const) (list 'vector const (+ (vec-size-counter const)
+													(get-free-add (+ 2 (vector-length const) (vec-size-counter const)))))))))
+			
+(define vec-size-counter
+	(lambda (vec)
+		(accumulate (lambda (x y)
+						(+ (cond 
+							((or (integer? x) (char? x)) 2)
+							((string? x) (+ 2 (string-length x)))
+							((symbol? x) (+ 2 (string-length (symbol->string x))))
+							((vector? x) (+ 2 (vector-length x) (vec-size-counter x)))
+							(else 0)) y)) 0 (vector->list vec))))
+
+;search in table for same type and value.
+;return the address
+(define const-lookup
+	(lambda(type value)
+		(caddar(filter (lambda (x)
+					(and (eq? (car x) type) (equal? (cadr x) value))) 
+					constant-list))))
 				
-				
-				
-				
-				
-				
+;--------------------------------------end constant table -----------------------------------------------------;
 				
 				
 				
