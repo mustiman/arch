@@ -697,9 +697,16 @@ int main()
 			((eq? (car pe) 'lambda-opt) (cg-lambda-opt pe (+ 1 env)))
 			((eq? (car pe) 'lambda-variadic) (cg-lambda-variadic pe (+ 1 env)))
 			((eq? (car pe) 'if-3) (cg-if-3 pe env))
-			((eq? (car pe) 'applic) (cg-applic pe env))
+			((eq? (car pe) 'applic) (if (primitive? pe) (cg-primitive-applic pe env) (cg-applic pe env)))
 			(else ""))))
 
+(define primitive?
+	(lambda (pe)
+		(let ((type (cadadr pe)))
+			(if (or (eq? type 'not) (eq? type 'boolean?) (eq? type 'char?) (eq? type 'integer?) (eq? type 'number?) (eq? type 'null?)
+					(eq? type 'procedure?) (eq? type 'string?) (eq? type 'symbol?) (eq? type 'vector?) (eq? type 'zero?) (eq? type 'string-length)
+					(eq? type 'vector-length) (eq? type 'cons) (eq? type 'car) (eq? type 'cdr) (eq? type 'char->integer) (eq? type 'integer->char) 
+					(eq? type 'remainder) (eq? type '+) (eq? type '*) (eq? type '/) (eq? type '-) (eq? type '>) (eq? type '<) (eq? type '=)) #t #f))))
 (define cg-applic
 	(lambda (pe env)
 		(let ((error-lable (lable-gen "L_APPLIC_ERROR_NOT_A_CLOS")))
@@ -712,7 +719,7 @@ int main()
 								"\tPUSH(R0);\n"
 								y)) "" (reverse params))
 						"\tPUSH(" (number->string (length params)) ");\n\n"
-						(if (primitive? proc) (primitive-code-gen proc) (string-append
+					;	(if (primitive? proc) (primitive-code-gen proc) (string-append
 						(code-gen proc env '())
 						"\tCMP(IND(R0), T_CLOSURE);\n"
 						"\tJUMP_NE (" error-lable ") ;\n"
@@ -722,7 +729,211 @@ int main()
 						"\tADD(R3,IMM(2));\n"
 						"\tDROP(R3);\n"
 						" " error-lable ": \n"))))))
+						
+(define cg-primitive-applic
+	(lambda (pe env)
+		(let ((error-lable (lable-gen "L_APPLIC_ERROR_NOT_A_CLOS"))
+			 (type (cadadr pe)))
+			(with pe
+				(lambda (_ proc params)
+					(let ((param_len (length params)))
+					(string-append "\t\t/* start primitive applic*/\n"
+						(accumulate (lambda (x y)
+							(string-append
+								(code-gen x env '())
+								"\tPUSH(R0);\n"
+								y)) "" (reverse params))
+					(cond   ((eq? type 'not)
+								(string-append		
+								"\tCALL(SCHEME_NOT);\n"
+								"\tDROP(1);\n"))
+							((eq? type 'boolean?)
+								(string-append
+								"\tCALL(IS_BOOLEAN);\n"
+								"\tDROP(1);\n"))
+							((eq? type 'char?)
+								(string-append
+								"\tCALL(IS_CHAR);\n"
+								"\tDROP(1);\n"
+								"\tDROP(1);\n"))
+							((or (eq? type 'integer?) (eq? type 'number?))
+								(string-append
+								"\tCALL(IS_INTEGER);\n"
+								"\tDROP(1);\n"))
+							((eq? type 'null?)
+								(string-append
+								"\tCALL(IS_NIL);\n"
+								"\tDROP(1);\n"))
+							((eq? type 'procedure?)
+								(string-append
+								"\tCALL(IS_CLOSURE);\n"
+								"\tDROP(1);\n"))
+							((eq? type 'string?)
+								(string-append
+								"\tCALL(IS_STRING);\n"
+								"\tDROP(1);\n"))
+							((eq? type 'symbol?)
+								(string-append
+								"\tCALL(IS_SYMBOL);\n"
+								"\tDROP(1);\n"))
+							((eq? type 'vector?)
+								(string-append
+								"\tCALL(IS_VECTOR);\n"
+								"\tDROP(1);\n"))								
+							((eq? type 'zero?)
+								(string-append
+								"\tCALL(IS_A_ZERO);\n"
+								"\tDROP(1);\n"))
+							((eq? type 'string-length)
+								(string-append
+								"\tCALL(STRING_LENGTH);\n"
+								"\tDROP(1);\n"))
+							((eq? type 'vector-length)
+								(string-append
+								"\tCALL(VECTOR_LENGTH);\n"
+								"\tDROP(1);\n"))
+							((eq? type 'car)
+								(string-append
+								"\tCALL(CAR);\n"
+								"\tDROP(1);\n"))
+							((eq? type 'cdr)
+								(string-append
+								"\tCALL(CDR);\n"
+								"\tDROP(1);\n"))
+							((eq? type 'cons)
+								(string-append
+								"\tCALL(MAKE_SOB_PAIR);\n"
+								"\tDROP(2);\n"))								
+							((eq? type 'char->integer)
+								(string-append
+								"\tCALL(CHAR_TO_INT);\n"
+								"\tDROP(1);\n"))
+							((eq? type 'integer->char)
+								(string-append
+								"\tCALL(INT_TO_CHAR);\n"
+								"\tDROP(1);\n"))								
+							((eq? type 'remainder)
+								(string-append
+								"\tCALL(SCHEME_REM);\n"
+								"\tDROP(2);\n"))
+							((eq? type '+)
+								(string-append
+								"\tPUSH(IMM(0));\n"
+								"\tCALL(MAKE_SOB_INTEGER);\n"
+								"\tDROP(1);\n"
+								"\tPUSH(R0);\n"
+								"\tCALL(SCHEME_ADD);\n"
+								"\tDROP(2);\n"
+								(make-var (string-append
+											"\tPUSH(R0);\n"
+											"\tCALL(SCHEME_ADD);\n"
+											"\tDROP(2);\n") (- param_len 1))))	
+							((eq? type '*)
+								(string-append
+								"\tPUSH(IMM(1));\n"
+								"\tCALL(MAKE_SOB_INTEGER);\n"
+								"\tDROP(1);\n"
+								"\tPUSH(R0);\n"
+								"\tCALL(SCHEME_MULTI);\n"
+								"\tDROP(2);\n"
+								(make-var (string-append
+											"\tPUSH(R0);\n"
+											"\tCALL(SCHEME_MULTI);\n"
+											"\tDROP(2);\n") (- param_len 1))))
+							((eq? type '/)
+							  (if (= param_len 1)
+								(string-append
+								"\tPUSH(IMM(1));\n"
+								"\tCALL(MAKE_SOB_INTEGER);\n"
+								"\tDROP(1);\n"
+								"\tPUSH(R0);\n"
+								"\tCALL(SCHEME_DIV);\n"
+								"\tDROP(2);\n")
+								
+								(string-append
+								"\tPOP(R1);\n"
+								"\tPUSH(IMM(1));\n"
+								"\tCALL(MAKE_SOB_INTEGER);\n"
+								"\tDROP(1);\n"
+								"\tPUSH(R0);\n"
+								"\tPUSH(R1);\n"
+								"\tCALL(SCHEME_DIV);\n"
+								"\tDROP(2);\n"
+								(make-var (string-append
+											"\tPUSH(R0);\n"
+											"\tCALL(SCHEME_DIV);\n"
+											"\tDROP(2);\n") (- param_len 1)))))
+							((eq? type '-)
+							  (if (= param_len 1)
+								(string-append
+								"\tPUSH(IMM(0));\n"
+								"\tCALL(MAKE_SOB_INTEGER);\n"
+								"\tDROP(1);\n"
+								"\tPUSH(R0);\n"
+								"\tCALL(SCHEME_SUB);\n"
+								"\tDROP(2);\n")
+								
+								(string-append
+								"\tPOP(R1);\n"
+								"\tPUSH(IMM(0));\n"
+								"\tCALL(MAKE_SOB_INTEGER);\n"
+								"\tDROP(1);\n"
+								"\tPUSH(R0);\n"
+								"\tPUSH(R1);\n"
+								"\tCALL(SCHEME_SUB);\n"
+								"\tDROP(2);\n"
+								(make-var (string-append
+											"\tPUSH(R0);\n"
+											"\tCALL(SCHEME_SUB);\n"
+											"\tDROP(2);\n") (- param_len 1)))))
+							((eq? type '=)
+							  (if (= param_len 1)
+								(string-append
+								"\tMOV(R0,14);\n"
+								"\tDROP(1);\n")
+								
+								(string-append
+								"\tCALL(SCHEME_EQ);\n"
+								"\tDROP(2);\n"
+								(make-var (string-append
+											"\tPUSH(R0);\n"
+											"\tCALL(SCHEME_EQ);\n"
+											"\tDROP(2);\n") (- param_len 2)))))
+							((eq? type '>)
+							  (if (= param_len 1)
+								(string-append
+								"\tMOV(R0,14);\n"
+								"\tDROP(1);\n")
+								
+								(string-append
+								"\tCALL(SCHEME_GT);\n"
+								"\tDROP(2);\n"
+								(make-var (string-append
+											"\tPUSH(R0);\n"
+											"\tCALL(SCHEME_GT);\n"
+											"\tDROP(2);\n") (- param_len 2)))))
+							((eq? type '<)
+							  (if (= param_len 1)
+								(string-append
+								"\tMOV(R0,14);\n"
+								"\tDROP(1);\n")
+								
+								(string-append
+								"\tCALL(SCHEME_LT);\n"
+								"\tDROP(2);\n"
+								(make-var (string-append
+											"\tPUSH(R0);\n"
+											"\tCALL(SCHEME_LT);\n"
+											"\tDROP(2);\n") (- param_len 2)))))
+							(else "")))))))))
 
+(define make-var
+	(lambda (prog times)
+		(if (> times 0)
+			(string-append
+			prog (make-var prog (- times 1))) "")))
+				
+						
 (define cg-lambda-opt
 	(lambda (pe env)
 		(let ((code-lable (lable-gen "L_CLOS_OPT_CODE"))
@@ -822,17 +1033,7 @@ int main()
 						"\tJUMP( " start-pair-loop " );\n"	
 						"\t\t/* ends create pairs loop */\n"
 						" " end-pair-loop ": \n"		
-						
-									;create pairs					
-							;	"for(i=R6; i > " (number->string args-size) "; i--){
-							;		PUSH(R0);
-							;		MOV(R7,i);
-							;		ADD(R7,IMM(1));
-							;		PUSH(FPARG(R7));
-							;		CALL(MAKE_SOB_PAIR);
-							;		DROP(2);
-						;	} \n"
-							
+													
 						"\tMOV(R7,R0);\n"
 						
 						"\tMOV(R8,SP);\n" ;old sp
@@ -877,25 +1078,6 @@ int main()
 						"\tMOV(FPARG(R14),FPARG(R12));\n"
 						"\tADD(R12,IMM(1));\n" ;i++
 						"\tJUMP( " start-false-loop " );\n"
-						
-						;"if(R6 > -1){"
-						;	"for(j=R11+1,i= 2+ "(number->string args-size)" ; i > -3 ; i--,j--){
-						;	printf(\"from: %d -> to: %d\\n\", FPARG(i),FPARG(j));
-						;	"
-						;	"\tMOV(FPARG(j),FPARG(i));\n"
-						;	"
-						;	} }
-						
-						
-						;	else{\n"
-						;	"printf(\"other\");\n"
-						;	"for(i=-2 ; i < R11+2 ; i++){
-						;		printf(\"from: %d -> to: %d\\n\", FPARG(i),FPARG(i-1));
-						;	"
-						;	"\tMOV(FPARG(i-1),FPARG(i));\n"
-						;	"
-						;	} }
-						;	\n"
 						
 						"\t\t/* finish fixing the stack */\n"
 						" " end-fix-loop ": \n"
@@ -957,12 +1139,7 @@ int main()
 						"\tJUMP( " start-env-loop " );\n"
 						"\t\t/* ends extend env loop */\n"
 						" " end-env-loop ": \n"		
-						
-						;	"	
-						;		for(i=0, j=1; i < R3-1;j++,i++){
-						;			MOV(INDD(INDD(R1,1),j),INDD(FPARG(0),i));
-						;	} \n"
-							
+													
 
 						"\tPUSH(FPARG(1));\n"
 						"\tCALL(MALLOC);\n"
@@ -986,10 +1163,6 @@ int main()
 						" " end-params-loop ": \n"							
 						
 
-						;	"	for(i=0; i < FPARG(1);i++){
-						;			MOV(INDD(INDD(R2,0),i),FPARG(i+2));
-						;		} \n"
-
 						"\tMOV(INDD(R1,IMM(2)),&&" code-lable " );\n"
 						"\tMOV(R0,R1);\n"
 						"\tJUMP(" exit-lable " );\n"
@@ -1008,7 +1181,6 @@ int main()
 								;create pairs	
 						"\t\t/* starts create pairs loop */\n"
 						"\tMOV(R9,R6);\n" ;i=R9
-						;"\tMOV(R10,IMM(" (number->string args-size) "));\n"
 						
 						" " start-pair-loop ": \n"
 						"\tCMP(R9,IMM(0));\n"
@@ -1023,16 +1195,6 @@ int main()
 						"\tJUMP( " start-pair-loop " );\n"	
 						"\t\t/* ends create pairs loop */\n"
 						" " end-pair-loop ": \n"							
-
-							;create pairs					
-						;		"for(i=R6; i > 0; i--){
-						;			PUSH(R0);
-						;			MOV(R7,i);
-						;			ADD(R7,IMM(1));
-						;			PUSH(FPARG(R7));
-						;			CALL(MAKE_SOB_PAIR);
-						;			DROP(2);
-						;	} \n"
 
 						"\tMOV(R7,R0);\n"
 						
@@ -1076,22 +1238,6 @@ int main()
 						"\tADD(R12,IMM(1));\n" ;i++
 						"\tJUMP( " start-false-loop " );\n"
 
-					;	"if(R6 > -1){"
-					;		"for(j=R11+1,i= 2 ; i > -3 ; i--,j--){
-					;		printf(\"from: %d -> to: %d\\n\", FPARG(i),FPARG(j));
-					;		"
-					;		"\tMOV(FPARG(j),FPARG(i));\n"
-					;		"
-					;		} }
-					;		else{\n"
-					;		"printf(\"other\");\n"
-					;		"for(i=-2 ; i < 2 ; i++){
-					;			printf(\"from: %d -> to: %d\\n\", FPARG(i),FPARG(i-1));
-					;		"
-					;		"\tMOV(FPARG(i-1),FPARG(i));\n"
-					;		"
-					;		} }
-					;		\n"
 					
 						"\t\t/* finish fixing the stack */\n"
 						" " end-fix-loop ": \n"

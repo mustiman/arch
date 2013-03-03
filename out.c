@@ -80,11 +80,102 @@ int main()
   DROP(3);
   
  /* initial constants-list*/
- /*finish initiate constants-list*/
-	MOV(R0,14);
-	PUSH(R0);
-	CALL(SCHEME_NOT);
+	PUSH(IMM(8));
+	CALL(MAKE_SOB_INTEGER);
 	DROP(1);
+	PUSH(IMM(5));
+	CALL(MAKE_SOB_INTEGER);
+	DROP(1);
+	PUSH(IMM(4));
+	CALL(MAKE_SOB_INTEGER);
+	DROP(1);
+ /*finish initiate constants-list*/
+		/* start applic*/
+	MOV(R0,IMM(16));
+	PUSH(R0);
+	MOV(R0,IMM(18));
+	PUSH(R0);
+	PUSH(2);
+
+		/* start lambda-simple*/
+	MOV(R3,IMM(1));
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(R1,R0);
+	MOV(IND(R1),IMM(T_CLOSURE));
+	PUSH(R3);
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R1,1),R0);
+		/* starts extend env loop */
+	MOV(R4,IMM(0));
+	MOV(R5,IMM(1));
+	SUB(R3,IMM(1));
+  L_ENV_LOOP_5: 
+	CMP(R4,R3);
+	JUMP_EQ(  L_ENV_LOOP_END_4 );
+	MOV(INDD(INDD(R1,1),R5),INDD(FPARG(0),R4));
+	ADD(R4,IMM(1));
+	ADD(R5,IMM(1));
+	JUMP(  L_ENV_LOOP_5 );
+		/* ends extend env loop */
+  L_ENV_LOOP_END_4: 
+	PUSH(FPARG(1));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(R2,INDD(R1,1));
+	MOV(INDD(R2,0),R0);
+		/* starts extend env[0] with params loop */
+	MOV(R4,IMM(0));
+  L_PARAMS_LOOP_3: 
+	CMP(R4,FPARG(1));
+	JUMP_EQ(  L_PARAMS_LOOP_END_2 );
+	MOV(R5,R4);
+	ADD(R5,IMM(2));
+	MOV(INDD(INDD(R2,IMM(0)),R4),FPARG(R5));
+	ADD(R4,IMM(1));
+	JUMP(  L_PARAMS_LOOP_3 );
+		/* ends extend env[0] with param loop */
+  L_PARAMS_LOOP_END_2: 
+	MOV(INDD(R1,IMM(2)),&& L_CLOS_CODE_7 );
+	MOV(R0,R1);
+	JUMP( L_CLOS_EXIT_6 );
+  L_CLOS_CODE_7: 
+	PUSH(FP);
+	MOV(FP,SP);
+		 /* start code-gen body */ 
+		/* start if*/
+		/* start primitive applic*/
+		/* start pvar*/
+	MOV(R0,FPARG(3));
+	PUSH(R0);
+		/* start pvar*/
+	MOV(R0,FPARG(2));
+	PUSH(R0);
+	CALL(SCHEME_GT);
+	DROP(2);
+	CMP(INDD(R0,1), INDD(12,1));
+	JUMP_EQ( L_DIF_8 );
+	MOV(R0,IMM(20));
+	JUMP( L_IF_EXIT_9 );
+
+ L_DIF_8: 
+	MOV(R0,12);
+
+ L_IF_EXIT_9: 
+		 /* finish code-gen body and finishing lambda */ 
+	POP(FP);
+	RETURN;
+  L_CLOS_EXIT_6: 
+	CMP(IND(R0), T_CLOSURE);
+	JUMP_NE ( L_APPLIC_ERROR_NOT_A_CLOS_1) ;
+	PUSH(INDD(R0,1));
+	CALLA(INDD(R0,2));
+	MOV(R3,STARG(0));
+	ADD(R3,IMM(2));
+	DROP(R3);
+  L_APPLIC_ERROR_NOT_A_CLOS_1: 
  END:
 	print_heap();
 	print_stack("no comment");

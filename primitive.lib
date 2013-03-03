@@ -1,8 +1,30 @@
 /* scheme.lib
  * Support for creating & manipulating Scheme objects in assembly
  *
- * Programmer: Mayer Goldberg, 2010
+ * Programmer: Mayer Goldberg and T & L, 2010, 2013
  */
 
 #include "lib/primitive/not.asm"
-
+#include "lib/primitive/is_boolean.asm"
+#include "lib/primitive/is_char.asm"
+#include "lib/primitive/is_integer.asm"
+#include "lib/primitive/is_nil.asm"
+#include "lib/primitive/is_closure.asm"
+#include "lib/primitive/is_string.asm"
+#include "lib/primitive/is_symbol.asm"
+#include "lib/primitive/is_vector.asm"
+#include "lib/primitive/is_a_zero.asm"
+#include "lib/primitive/string_length.asm"
+#include "lib/primitive/vector_length.asm"
+#include "lib/primitive/add.asm"
+#include "lib/primitive/sub.asm"
+#include "lib/primitive/multi.asm"
+#include "lib/primitive/div.asm"
+#include "lib/primitive/rem.asm"
+#include "lib/primitive/grater.asm"
+#include "lib/primitive/smaller.asm"
+#include "lib/primitive/equal.asm"
+#include "lib/primitive/car.asm"
+#include "lib/primitive/cdr.asm"
+#include "lib/primitive/char_to_int.asm"
+#include "lib/primitive/int_to_char.asm"
